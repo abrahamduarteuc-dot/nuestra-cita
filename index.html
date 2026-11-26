@@ -71,6 +71,7 @@ textarea{resize:vertical}
   <div class="titulo"><div class="suave" id="saludo">Cargando…</div><h1>Nuestras citas</h1></div>
   <div class="semana"><button class="flecha" id="antes" aria-label="Semana anterior">‹</button><b id="mes"></b><button class="flecha" id="despues" aria-label="Semana siguiente">›</button></div>
   <div class="dias" id="dias"></div>
+  <div id="cambio"></div>
   <div class="horas" id="horas"></div>
 </main>
 <div class="pie"><button class="grande oscuro" id="invitar">♥&nbsp; Invitarte a salir</button></div>
@@ -94,7 +95,7 @@ const parametros = new URLSearchParams(location.hash.slice(1));
 let clave = parametros.get('u') || cargar('cita_clave');
 let pendienteAbrir = parametros.get('inv');
 
-let datos = null, elegido = null, ocupadoActual = false;
+let datos = null, elegido = null, cambiando = null;
 let hoy = iso(new Date()), dia = hoy, semana = 0;
 
 function demo(p) {
@@ -104,6 +105,7 @@ function demo(p) {
     const i = d.ocupado.findIndex(o => o.fecha === p.fecha && o.hora === p.hora && o.usuario === d.yo);
     i < 0 ? d.ocupado.push({usuario:d.yo, fecha:p.fecha, hora:p.hora}) : d.ocupado.splice(i,1);
   }
+  if (p.accion === 'invitar' && p.reemplaza) d.invitaciones.find(i => i.id === p.reemplaza).estado = 'reprogramada';
   if (p.accion === 'invitar') d.invitaciones.push({...p, id:String(Date.now()), de:d.yo, estado:'pendiente', respuesta:''});
   if (p.accion === 'responder') Object.assign(d.invitaciones.find(i => i.id === p.id), {estado:p.estado});
   guardar('cita_demo', JSON.stringify(d));
@@ -122,7 +124,8 @@ function pedirLlave() {
   datos = null;
   document.body.classList.add('sin-llave');
   $('#saludo').textContent = 'Solo para nosotros dos';
-  $('#horas').innerHTML = `<form id="llave"><label>Tu correo<input type="email" name="correo" autocomplete="email" autocapitalize="off" placeholder="nombre@gmail.com" required></label>
+  $('#horas').innerHTML = `<form id="llave"><label>Tu nombre<input name="nombre" autocomplete="given-name" maxlength="40" placeholder="Como quieres que te llame" required></label>
+    <label>Tu correo<input type="email" name="correo" autocomplete="email" autocapitalize="off" placeholder="nombre@gmail.com" required></label>
     <button class="grande" type="submit">♥&nbsp; Entrar</button></form>`;
 }
 
@@ -152,7 +155,7 @@ async function pedir(accion, extra = {}) {
 }
 
 const activa = i => i.estado === 'pendiente' || i.estado === 'aceptada';
-const enHora = (f, h) => datos.invitaciones.find(i => i.fecha === f && activa(i) && h >= i.inicio && h < i.inicio + i.horas);
+const enHora = (f, h) => datos.invitaciones.find(i => i.fecha === f && activa(i) && i.id !== cambiando?.id && h >= i.inicio && h < i.inicio + i.horas);
 const ocupados = (f, h) => datos.ocupado.filter(o => o.fecha === f && o.hora === h);
 const pasada = (f, h) => new Date(`${f}T${String(h).padStart(2,'0')}:00:00`) < new Date();
 const libre = (f, h) => h < 24 && !pasada(f,h) && !enHora(f,h) && !ocupados(f,h).length;
@@ -169,6 +172,7 @@ function pintar() {
     const marca = datos.invitaciones.some(i => i.fecha === f && activa(i)) ? '♥' : '';
     return `<button class="dia" data-dia="${f}" aria-pressed="${f===dia}" aria-label="${largo(f)}" ${f<hoy?'disabled':''}><small>${'LMMJVSD'[n]}</small><b>${d.getDate()}</b><i>${marca}</i></button>`;
   }).join('');
+  $('#cambio').innerHTML = cambiando ? `<div class="horas"><div class="bloque pendiente"><span>Reprogramando <b>${esc(cambiando.plan)}</b>: elige día y hora</span><button class="chip" data-hacer="soltar" style="padding:0 12px">Salir</button></div></div>` : '';
   let html = '';
   for (let h = 10; h < 24; h++) {
     const i = enHora(dia, h), o = ocupados(dia, h);
@@ -209,7 +213,6 @@ const chips = (nombre, lista, sel, extra = '') => `<div class="grupo ${extra}" d
 function opciones(h) {
   elegido = h;
   const mio = ocupados(dia,h).some(o => o.usuario === datos.yo);
-  ocupadoActual = mio;
   abrir(`${h}:00`, largo(dia), `<div class="botones">
     ${libre(dia,h) ? '<button class="grande" data-hacer="formulario">♥&nbsp; Invitar a salir</button>' : ''}
     <button class="grande borde" data-hacer="ocupar">${mio ? 'Ya puedo en este horario' : 'No puedo en este horario'}</button></div>`);
@@ -217,14 +220,16 @@ function opciones(h) {
 
 function formulario(h) {
   elegido = h;
+  if (datos.hayPareja === false) return abrir('Falta tu pareja', 'Aún no entra a la app', `<p>Envíale el enlace. Cuando escriba su nombre y correo, podrás invitar.</p><button class="grande" data-hacer="compartir">♥&nbsp; Enviar enlace</button>`);
+  const v = cambiando || {plan:'Cena', horas:2, lugar:'', vestimenta:'', mensaje:'Quiero pasar un rato lindo contigo. ¿Me acompañas?'};
   let max = 0; while (max < 4 && libre(dia, h+max)) max++;
-  abrir('Tu invitación', `${largo(dia)} · desde las ${h}:00`, `<form id="forma">
-    <b>¿Qué haremos?</b>${chips('plan', [['Cena','Cena'],['Cine','Cine'],['Picnic','Picnic'],['Sorpresa','Sorpresa']], 'Cena', 'dos')}
-    <b>¿Cuántas horas?</b>${chips('horas', [...Array(max)].map((_,n) => [n+1, n+1+' h']), Math.min(2,max))}
-    <label>Lugar<input name="lugar" maxlength="120" placeholder="Ej: nuestro restaurante favorito"></label>
-    <label>Mensaje<textarea name="mensaje" rows="3" maxlength="400">Quiero pasar un rato lindo contigo. ¿Me acompañas?</textarea></label>
-    <label>Código de vestimenta<input name="vestimenta" maxlength="80" placeholder="Ej: elegante, o como quieras"></label>
-    <button class="grande" type="submit">♥&nbsp; Enviar invitación</button></form>`);
+  abrir(cambiando ? 'Nuevo horario' : 'Tu invitación', `${largo(dia)} · desde las ${h}:00`, `<form id="forma">
+    <b>¿Qué haremos?</b>${chips('plan', [['Cena','Cena'],['Cine','Cine'],['Picnic','Picnic'],['Sorpresa','Sorpresa']], v.plan, 'dos')}
+    <b>¿Cuántas horas?</b>${chips('horas', [...Array(max)].map((_,n) => [n+1, n+1+' h']), Math.min(v.horas,max))}
+    <label>Lugar<input name="lugar" maxlength="120" value="${esc(v.lugar)}" placeholder="Ej: nuestro restaurante favorito"></label>
+    <label>Mensaje<textarea name="mensaje" rows="3" maxlength="400">${esc(v.mensaje)}</textarea></label>
+    <label>Código de vestimenta<input name="vestimenta" maxlength="80" value="${esc(v.vestimenta)}" placeholder="Ej: elegante, o como quieras"></label>
+    <button class="grande" type="submit">♥&nbsp; ${cambiando ? 'Proponer nuevo horario' : 'Enviar invitación'}</button></form>`);
 }
 
 function verInvitacion(i) {
@@ -232,9 +237,10 @@ function verInvitacion(i) {
   const mia = i.de === datos.yo;
   // En modo de prueba se puede responder la propia invitación para ver el recorrido completo.
   const responde = i.estado === 'pendiente' && (!mia || !API);
-  const titulos = {pendiente:'¿Quieres salir conmigo?', aceptada:'¡Tenemos una cita!', otro:'Busquemos otro momento', cancelada:'Cita cancelada'};
+  const titulos = {pendiente:'¿Quieres salir conmigo?', aceptada:'¡Tenemos una cita!', otro:'Busquemos otro momento', cancelada:'Cita cancelada', reprogramada:'Cita reprogramada'};
   let botones = '';
-  if (responde) botones = '<button class="grande" data-estado="aceptada">♥&nbsp; Sí, acepto</button><button class="grande borde" data-estado="otro">Propongo otro día</button>';
+  if (responde) botones = '<button class="grande" data-estado="aceptada">♥&nbsp; Sí, acepto</button>';
+  if (activa(i)) botones += `<button class="grande borde" data-hacer="reprogramar">${responde && !mia ? 'Propongo otro horario' : 'Reprogramar'}</button>`;
   if (i.estado === 'aceptada' || (i.estado === 'pendiente' && mia)) botones += '<button class="grande borde" data-estado="cancelada">Cancelar cita</button>';
   abrir('La invitación', mia ? `Para ${esc(datos.suNombre)}` : `De ${esc(datos.suNombre)}`, `<div class="tarjeta">
     <div class="suave">${esc(mia ? datos.suNombre : datos.miNombre)},</div><h2>${titulos[i.estado]}</h2>
@@ -263,6 +269,15 @@ document.addEventListener('click', async e => {
   else if ('cerrar' in d) cerrar();
   else if (d.valor) b.parentNode.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b));
   else if (d.hacer === 'formulario') formulario(elegido);
+  else if (d.hacer === 'reprogramar') { cambiando = datos.invitaciones.find(i => i.id === elegido); cerrar(); pintar(); }
+  else if (d.hacer === 'soltar') { cambiando = null; pintar(); }
+  else if (d.hacer === 'compartir') {
+    const url = location.href.split('#')[0];
+    try {
+      if (navigator.share) await navigator.share({title:'Nuestra Cita', text:'Entra a nuestro calendario ♥', url});
+      else { await navigator.clipboard.writeText(url); aviso('Enlace copiado'); }
+    } catch (err) {}
+  }
   else if (d.hacer === 'ocupar') { if (await pedir('ocupar', {fecha:dia, hora:elegido})) cerrar(); }
   else if (d.estado) {
     if (d.estado === 'cancelada' && !confirm('¿Seguro que quieres cancelar?')) return;
@@ -275,14 +290,14 @@ document.addEventListener('click', async e => {
 document.addEventListener('submit', async e => {
   e.preventDefault();
   if (e.target.id === 'llave') {
-    await pedir('entrar', {correo: e.target.correo.value.trim()}); return;
+    await pedir('entrar', {nombre: e.target.nombre.value.trim(), correo: e.target.correo.value.trim()}); return;
   }
   const f = e.target, valor = g => f.querySelector(`[data-grupo=${g}] [aria-pressed=true]`).dataset.valor;
   const boton = f.querySelector('[type=submit]'); boton.disabled = true;
-  const ok = await pedir('invitar', {fecha:dia, inicio:elegido, horas:+valor('horas'), plan:valor('plan'),
+  const ok = await pedir('invitar', {fecha:dia, inicio:elegido, reemplaza:cambiando?.id || '', horas:+valor('horas'), plan:valor('plan'),
     lugar:f.lugar.value.trim(), mensaje:f.mensaje.value.trim(), vestimenta:f.vestimenta.value.trim()});
   boton.disabled = false;
-  if (ok) { cerrar(); aviso(API ? '💌 Invitación enviada' : '💌 Invitación guardada (modo de prueba)'); }
+  if (ok) { cambiando = null; cerrar(); pintar(); aviso(API ? '💌 Invitación enviada' : '💌 Invitación guardada (modo de prueba)'); }
 });
 
 $('#hoja').addEventListener('close', () => document.body.appendChild($('#aviso')));
