@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#4A1228">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Nuestra Cita</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23B4235A' d='M12 21C5 16 2 12.5 2 8.5 2 5.4 4.4 3 7.3 3c1.9 0 3.6 1 4.7 2.6C13.1 4 14.8 3 16.7 3 19.6 3 22 5.4 22 8.5c0 4-3 7.5-10 12.5z'/></svg>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:ital,wght@1,500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#FFF4F2;color:#3A1C28;font-family:'DM Sans',system-ui,sans-serif}
+main{max-width:460px;margin:auto;padding-bottom:110px}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,.serif{font-family:Fraunces,Georgia,serif;font-style:italic;font-weight:500;margin:0}
+header{position:relative;background:#2B0E2C}
+header img{display:block;width:100%;aspect-ratio:5/3;object-fit:cover}
+.titulo{margin:-4px 20px 0;padding-top:20px}
+h1{font-size:34px}
+.suave{color:#7A5563;font-size:14px}
+.semana{display:flex;align-items:center;justify-content:space-between;margin:14px 20px 4px}
+.flecha{width:44px;height:44px;border-radius:22px;border:0;background:#FBDDE4;color:#8E1C48;font-size:22px}
+.flecha:disabled{opacity:.35}
+.dias{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px 14px}
+.dia{border:0;background:none;border-radius:22px;height:72px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dia b{font-size:18px}.dia small{color:#7A5563}.dia i{height:12px;font-style:normal;font-size:10px;color:#B4235A}
+.dia[aria-pressed=true]{background:#B4235A;color:#fff}.dia[aria-pressed=true] *{color:#fff}
+.dia:disabled{opacity:.35}
+.horas{display:flex;flex-direction:column;gap:8px;padding:8px 20px}
+.fila{display:flex;gap:10px}
+.fila>span{width:42px;font-size:12px;color:#7A5563;padding-top:8px}
+.bloque{flex:1;min-height:54px;border-radius:18px;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font-size:14px;border:1.5px dashed #DE8FA8;background:#fff;color:#8E1C48;min-width:0;overflow-wrap:anywhere}
+.bloque.ocupado{border:1.5px solid #F0E4E6;background:#F0E4E6;color:#6B4552}
+.bloque.pendiente{border:1.5px solid #C9A15A;background:#FFF3DA;color:#5C420E}
+.bloque.aceptada{border:0;background:#B4235A;color:#fff;box-shadow:0 8px 20px #b4235a4d}
+.pie{position:fixed;left:0;right:0;bottom:0;padding:16px 20px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(#fff4f200,#FFF4F2 35%)}
+.grande{display:flex;align-items:center;justify-content:center;width:100%;max-width:420px;margin:auto;min-height:56px;border-radius:30px;border:0;background:#B4235A;color:#fff;font-weight:700;font-size:17px}
+.oscuro{background:#3A1C28}.borde{background:none;border:1.5px solid #B4235A;color:#8E1C48}
+.grande:disabled{opacity:.6}
+dialog{border:0;padding:24px 22px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:460px;max-height:92dvh;margin:auto auto 0;border-radius:34px 34px 0 0;background:#FFF4F2;color:#3A1C28;overflow:auto}
+dialog::backdrop{background:#4a1228b8}
+dialog[open]{animation:sube .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes sube{from{transform:translateY(60px);opacity:0}}
+@media (prefers-reduced-motion:reduce){dialog[open]{animation:none}}
+.cab{display:flex;justify-content:space-between;gap:12px;margin-bottom:14px}
+h2{font-size:28px}
+.grupo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 16px}
+.grupo.dos{grid-template-columns:repeat(2,1fr)}
+.chip{min-height:48px;border-radius:16px;border:1.5px solid #E7B7C6;background:#fff;font-weight:700}
+.chip[aria-pressed=true]{background:#3A1C28;color:#fff}
+label{display:block;font-weight:700;font-size:15px;margin-bottom:14px}
+input,textarea{display:block;width:100%;margin-top:8px;border:1.5px solid #E7B7C6;border-radius:16px;background:#fff;padding:13px 16px;font-size:16px;font-weight:400}
+textarea{resize:vertical}
+.tarjeta{border:1.5px solid #C9A15A;border-radius:140px 140px 20px 20px;background:#FFFAF5;text-align:center;padding:40px 20px 24px;margin-bottom:16px;overflow-wrap:anywhere}
+.tarjeta h2{font-size:34px;margin:10px 0}
+.tarjeta .serif{font-size:24px;color:#8E1C48}
+.botones{display:flex;flex-direction:column;gap:10px}
+#aviso{position:fixed;top:12px;left:12px;right:12px;max-width:430px;margin:auto;background:#3A1C28;color:#fff;border-radius:16px;padding:14px 18px;text-align:center;z-index:9}
+#aviso:empty{display:none}
+</style>
+</head>
+<body>
+<main>
+  <header><img src="portada.jpg" alt="Una pareja cenando a la luz de la luna"></header>
+  <div class="titulo"><div class="suave" id="saludo">Cargando…</div><h1>Nuestras citas</h1></div>
+  <div class="semana"><button class="flecha" id="antes" aria-label="Semana anterior">‹</button><b id="mes"></b><button class="flecha" id="despues" aria-label="Semana siguiente">›</button></div>
+  <div class="dias" id="dias"></div>
+  <div class="horas" id="horas"></div>
+</main>
+<div class="pie"><button class="grande oscuro" id="invitar">♥&nbsp; Invitarte a salir</button></div>
+<dialog id="hoja"></dialog>
+<div id="aviso" role="status"></div>
+<script>
+// Pega aquí la dirección de tu aplicación web de Apps Script (termina en /exec).
+// Vacía = modo de prueba: todo se guarda solo en este teléfono y no se envían correos.
+const API = 'https://script.google.com/macros/s/AKfycbzbfrWvUkKo4yhNuLuql0fkqN9tbEjkEES5uwdDEIWzqAT_Yi5QROJohkZ1Ndij0ITI/exec';
+
+const $ = s => document.querySelector(s);
+const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const cargar = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const deIso = s => new Date(s + 'T12:00:00');
+const rango = i => `${i.inicio}:00 a ${(i.inicio + i.horas) % 24 || '00'}:00`;
+const largo = s => deIso(s).toLocaleDateString('es-CL', {weekday:'long', day:'numeric', month:'long'});
+
+const parametros = new URLSearchParams(location.hash.slice(1));
+if (parametros.get('u')) guardar('cita_clave', parametros.get('u'));
+const clave = parametros.get('u') || cargar('cita_clave');
+let pendienteAbrir = parametros.get('inv');
+
+let datos = null, elegido = null, ocupadoActual = false;
+let hoy = iso(new Date()), dia = hoy, semana = 0;
+
+function demo(p) {
+  let d; try { d = JSON.parse(cargar('cita_demo')); } catch (e) {}
+  d = d || { yo:'YO', miNombre:'Abraham', suNombre:'Mi amor', invitaciones:[], ocupado:[] };
+  if (p.accion === 'ocupar') {
+    const i = d.ocupado.findIndex(o => o.fecha === p.fecha && o.hora === p.hora && o.usuario === d.yo);
+    i < 0 ? d.ocupado.push({usuario:d.yo, fecha:p.fecha, hora:p.hora}) : d.ocupado.splice(i,1);
+  }
+  if (p.accion === 'invitar') d.invitaciones.push({...p, id:String(Date.now()), de:d.yo, estado:'pendiente', respuesta:''});
+  if (p.accion === 'responder') Object.assign(d.invitaciones.find(i => i.id === p.id), {estado:p.estado});
+  guardar('cita_demo', JSON.stringify(d));
+  return d;
+}
+
+function aviso(t, ms = 3500) {
+  const a = $('#aviso'); a.textContent = t; clearTimeout(aviso.t);
+  if (ms) aviso.t = setTimeout(() => a.textContent = '', ms);
+  // Dentro de una ventana abierta el aviso debe quedar por encima.
+  ($('#hoja').open ? $('#hoja') : document.body).appendChild(a);
+}
+
+let ocupada = false;
+async function pedir(accion, extra = {}) {
+  if (ocupada) return false;
+  ocupada = true;
+  if (accion !== 'estado') aviso('Un momento…', 0);
+  try {
+    let r;
+    if (!API) r = demo({accion, ...extra});
+    else {
+      if (!clave) throw new Error('Abre la app desde el enlace que llegó a tu correo.');
+      // Sin cabeceras propias: así Apps Script acepta la petición desde otra página.
+      r = await (await fetch(API, {method:'POST', body:JSON.stringify({accion, clave, ...extra})})).json();
+    }
+    if (r.error) throw new Error(r.error);
+    datos = r; aviso('', 1); pintar();
+    return true;
+  } catch (e) {
+    aviso(e instanceof TypeError || e instanceof SyntaxError ? 'No hay conexión. Inténtalo otra vez.' : e.message, 5000);
+    return false;
+  } finally { ocupada = false; }
+}
+
+const activa = i => i.estado === 'pendiente' || i.estado === 'aceptada';
+const enHora = (f, h) => datos.invitaciones.find(i => i.fecha === f && activa(i) && h >= i.inicio && h < i.inicio + i.horas);
+const ocupados = (f, h) => datos.ocupado.filter(o => o.fecha === f && o.hora === h);
+const pasada = (f, h) => new Date(`${f}T${String(h).padStart(2,'0')}:00:00`) < new Date();
+const libre = (f, h) => h < 24 && !pasada(f,h) && !enHora(f,h) && !ocupados(f,h).length;
+
+function pintar() {
+  if (!datos) return;
+  $('#saludo').textContent = `Hola, ${datos.miNombre}` + (API ? '' : ' · modo de prueba');
+  const lunes = new Date(); lunes.setHours(12,0,0,0);
+  lunes.setDate(lunes.getDate() - (lunes.getDay()+6)%7 + semana*7);
+  $('#mes').textContent = deIso(dia).toLocaleDateString('es-CL', {month:'long', year:'numeric'});
+  $('#antes').disabled = semana === 0;
+  $('#dias').innerHTML = [...Array(7)].map((_, n) => {
+    const d = new Date(lunes); d.setDate(d.getDate()+n); const f = iso(d);
+    const marca = datos.invitaciones.some(i => i.fecha === f && activa(i)) ? '♥' : '';
+    return `<button class="dia" data-dia="${f}" aria-pressed="${f===dia}" aria-label="${largo(f)}" ${f<hoy?'disabled':''}><small>${'LMMJVSD'[n]}</small><b>${d.getDate()}</b><i>${marca}</i></button>`;
+  }).join('');
+  let html = '';
+  for (let h = 10; h < 24; h++) {
+    const i = enHora(dia, h), o = ocupados(dia, h);
+    if (pasada(dia, h) && !i) continue;
+    let clase = '', texto = '<span>Libres los dos</span><span style="font-size:22px">+</span>';
+    if (i) {
+      clase = i.estado;
+      const estado = i.estado === 'aceptada' ? '¡Cita confirmada!' : i.de === datos.yo ? 'Esperando respuesta' : '¡Te invitaron! Toca para responder';
+      texto = h === i.inicio ? `<span><b class="serif">${esc(i.plan)}</b><br>${estado}</span><span>♥</span>` : '<span></span><span>♥</span>';
+    } else if (o.length) {
+      clase = 'ocupado';
+      texto = `<span>${o.length > 1 ? 'Los dos ocupados' : o[0].usuario === datos.yo ? 'Tú no puedes' : esc(datos.suNombre) + ' no puede'}</span>`;
+    }
+    html += `<div class="fila"><span>${h}:00</span><button class="bloque ${clase}" data-hora="${h}">${texto}</button></div>`;
+  }
+  $('#horas').innerHTML = html || '<p class="suave">Ya no quedan horas hoy. Elige otro día ♥</p>';
+  if (pendienteAbrir) {
+    const i = datos.invitaciones.find(x => x.id === pendienteAbrir); pendienteAbrir = null;
+    if (i) { dia = i.fecha < hoy ? hoy : i.fecha; semana = semanaDe(dia); pintar(); verInvitacion(i); }
+  }
+}
+
+function semanaDe(f) {
+  const lunes = d => { const x = new Date(d); x.setHours(12,0,0,0); x.setDate(x.getDate() - (x.getDay()+6)%7); return x; };
+  return Math.round((lunes(deIso(f)) - lunes(new Date())) / 6048e5);
+}
+
+function abrir(titulo, sub, cuerpo) {
+  const d = $('#hoja');
+  d.innerHTML = `<div class="cab"><div><h2>${titulo}</h2><div class="suave">${sub}</div></div><button class="flecha" data-cerrar aria-label="Cerrar">×</button></div>${cuerpo}`;
+  if (!d.open) d.showModal();
+}
+const cerrar = () => { const d = $('#hoja'); document.body.appendChild($('#aviso')); d.close(); };
+
+const chips = (nombre, lista, sel, extra = '') => `<div class="grupo ${extra}" data-grupo="${nombre}">` +
+  lista.map(([v,t]) => `<button type="button" class="chip" data-valor="${v}" aria-pressed="${v==sel}">${t}</button>`).join('') + '</div>';
+
+function opciones(h) {
+  elegido = h;
+  const mio = ocupados(dia,h).some(o => o.usuario === datos.yo);
+  ocupadoActual = mio;
+  abrir(`${h}:00`, largo(dia), `<div class="botones">
+    ${libre(dia,h) ? '<button class="grande" data-hacer="formulario">♥&nbsp; Invitar a salir</button>' : ''}
+    <button class="grande borde" data-hacer="ocupar">${mio ? 'Ya puedo en este horario' : 'No puedo en este horario'}</button></div>`);
+}
+
+function formulario(h) {
+  elegido = h;
+  let max = 0; while (max < 4 && libre(dia, h+max)) max++;
+  abrir('Tu invitación', `${largo(dia)} · desde las ${h}:00`, `<form id="forma">
+    <b>¿Qué haremos?</b>${chips('plan', [['Cena','Cena'],['Cine','Cine'],['Picnic','Picnic'],['Sorpresa','Sorpresa']], 'Cena', 'dos')}
+    <b>¿Cuántas horas?</b>${chips('horas', [...Array(max)].map((_,n) => [n+1, n+1+' h']), Math.min(2,max))}
+    <label>Lugar<input name="lugar" maxlength="120" placeholder="Ej: nuestro restaurante favorito"></label>
+    <label>Mensaje<textarea name="mensaje" rows="3" maxlength="400">Quiero pasar un rato lindo contigo. ¿Me acompañas?</textarea></label>
+    <label>Código de vestimenta<input name="vestimenta" maxlength="80" placeholder="Ej: elegante, o como quieras"></label>
+    <button class="grande" type="submit">♥&nbsp; Enviar invitación</button></form>`);
+}
+
+function verInvitacion(i) {
+  elegido = i.id;
+  const mia = i.de === datos.yo;
+  // En modo de prueba se puede responder la propia invitación para ver el recorrido completo.
+  const responde = i.estado === 'pendiente' && (!mia || !API);
+  const titulos = {pendiente:'¿Quieres salir conmigo?', aceptada:'¡Tenemos una cita!', otro:'Busquemos otro momento', cancelada:'Cita cancelada'};
+  let botones = '';
+  if (responde) botones = '<button class="grande" data-estado="aceptada">♥&nbsp; Sí, acepto</button><button class="grande borde" data-estado="otro">Propongo otro día</button>';
+  if (i.estado === 'aceptada' || (i.estado === 'pendiente' && mia)) botones += '<button class="grande borde" data-estado="cancelada">Cancelar cita</button>';
+  abrir('La invitación', mia ? `Para ${esc(datos.suNombre)}` : `De ${esc(datos.suNombre)}`, `<div class="tarjeta">
+    <div class="suave">${esc(mia ? datos.suNombre : datos.miNombre)},</div><h2>${titulos[i.estado]}</h2>
+    <div class="serif">${esc(i.plan)}</div><p><b>${largo(i.fecha)}</b><br>${rango(i)}</p>
+    ${i.lugar ? `<p>Lugar: ${esc(i.lugar)}</p>` : ''}${i.vestimenta ? `<p>Vestimenta: ${esc(i.vestimenta)}</p>` : ''}
+    <p class="suave">${esc(i.mensaje)}</p><p>Con amor, ${esc(mia ? datos.miNombre : datos.suNombre)}</p></div><div class="botones">${botones}</div>`);
+}
+
+function proximoLibre() {
+  for (const h of [20,19,21,18,17,16,15,14,13,12,11,10,22,23]) if (libre(dia,h)) return h;
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b || !datos) return;
+  const d = b.dataset;
+  if (b.id === 'antes' || b.id === 'despues') {
+    semana = Math.max(0, semana + (b.id === 'antes' ? -1 : 1));
+    const x = new Date(); x.setDate(x.getDate() - (x.getDay()+6)%7 + semana*7);
+    dia = semana ? iso(x) : hoy; pintar();
+  } else if (d.dia) { dia = d.dia; pintar(); }
+  else if (d.hora) { const h = +d.hora, i = enHora(dia,h); i ? verInvitacion(i) : opciones(h); }
+  else if (b.id === 'invitar') {
+    const h = proximoLibre();
+    h === undefined ? aviso('No quedan horas libres este día. Elige otro.') : formulario(h);
+  }
+  else if ('cerrar' in d) cerrar();
+  else if (d.valor) b.parentNode.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b));
+  else if (d.hacer === 'formulario') formulario(elegido);
+  else if (d.hacer === 'ocupar') { if (await pedir('ocupar', {fecha:dia, hora:elegido})) cerrar(); }
+  else if (d.estado) {
+    if (d.estado === 'cancelada' && !confirm('¿Seguro que quieres cancelar?')) return;
+    if (await pedir('responder', {id:elegido, estado:d.estado})) {
+      cerrar(); aviso(d.estado === 'aceptada' ? '♥ ¡Tenemos una cita!' : 'Respuesta enviada');
+    }
+  }
+});
+
+document.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target, valor = g => f.querySelector(`[data-grupo=${g}] [aria-pressed=true]`).dataset.valor;
+  const boton = f.querySelector('[type=submit]'); boton.disabled = true;
+  const ok = await pedir('invitar', {fecha:dia, inicio:elegido, horas:+valor('horas'), plan:valor('plan'),
+    lugar:f.lugar.value.trim(), mensaje:f.mensaje.value.trim(), vestimenta:f.vestimenta.value.trim()});
+  boton.disabled = false;
+  if (ok) { cerrar(); aviso(API ? '💌 Invitación enviada' : '💌 Invitación guardada (modo de prueba)'); }
+});
+
+$('#hoja').addEventListener('close', () => document.body.appendChild($('#aviso')));
+window.addEventListener('hashchange', () => location.reload());
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#hoja').open) { hoy = iso(new Date()); if (dia < hoy) dia = hoy; pedir('estado'); } });
+pedir('estado');
+</script>
+</body>
+</html>
