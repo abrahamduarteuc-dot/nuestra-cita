@@ -7,6 +7,8 @@
 <meta name="theme-color" content="#4A1228">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Nuestra Cita</title>
+<meta name="apple-mobile-web-app-title" content="Nuestra Cita">
+<link rel="apple-touch-icon" href="icono.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23B4235A' d='M12 21C5 16 2 12.5 2 8.5 2 5.4 4.4 3 7.3 3c1.9 0 3.6 1 4.7 2.6C13.1 4 14.8 3 16.7 3 19.6 3 22 5.4 22 8.5c0 4-3 7.5-10 12.5z'/></svg>">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:ital,wght@1,500&display=swap">
 <style>
@@ -60,6 +62,7 @@ textarea{resize:vertical}
 .botones{display:flex;flex-direction:column;gap:10px}
 #aviso{position:fixed;top:12px;left:12px;right:12px;max-width:430px;margin:auto;background:#3A1C28;color:#fff;border-radius:16px;padding:14px 18px;text-align:center;z-index:9}
 #aviso:empty{display:none}
+.sin-llave .semana,.sin-llave .dias,.sin-llave .pie{display:none}
 </style>
 </head>
 <body>
@@ -88,8 +91,7 @@ const rango = i => `${i.inicio}:00 a ${(i.inicio + i.horas) % 24 || '00'}:00`;
 const largo = s => deIso(s).toLocaleDateString('es-CL', {weekday:'long', day:'numeric', month:'long'});
 
 const parametros = new URLSearchParams(location.hash.slice(1));
-if (parametros.get('u')) guardar('cita_clave', parametros.get('u'));
-const clave = parametros.get('u') || cargar('cita_clave');
+let clave = parametros.get('u') || cargar('cita_clave');
 let pendienteAbrir = parametros.get('inv');
 
 let datos = null, elegido = null, ocupadoActual = false;
@@ -115,24 +117,43 @@ function aviso(t, ms = 3500) {
   ($('#hoja').open ? $('#hoja') : document.body).appendChild(a);
 }
 
+// Pantalla para entrar cuando la app no tiene la llave (por ejemplo, desde el ícono del inicio).
+function pedirLlave() {
+  datos = null;
+  document.body.classList.add('sin-llave');
+  $('#saludo').textContent = 'Solo para nosotros dos';
+  $('#horas').innerHTML = `<form id="llave"><p>Abre el correo <b>“Nuestro calendario de citas”</b>, mantén presionado el botón, elige <b>Copiar enlace</b> y pégalo aquí.</p>
+    <label>Tu enlace personal<input name="enlace" autocomplete="off" autocapitalize="off" placeholder="Pegar enlace" required></label>
+    <button class="grande" type="submit">♥&nbsp; Entrar</button></form>`;
+}
+// Acepta el enlace completo, uno envuelto por el correo o solo la clave.
+function leerClave(texto) {
+  let t = texto.trim();
+  try { t = decodeURIComponent(decodeURIComponent(t)); } catch (e) {}
+  return (t.match(/(?:u=|^)([a-z0-9]{32})(?![a-z0-9])/i) || [])[1];
+}
+
 let ocupada = false;
 async function pedir(accion, extra = {}) {
   if (ocupada) return false;
+  if (API && !clave) { pedirLlave(); return false; }
   ocupada = true;
   if (accion !== 'estado') aviso('Un momento…', 0);
   try {
     let r;
     if (!API) r = demo({accion, ...extra});
     else {
-      if (!clave) throw new Error('Abre la app desde el enlace que llegó a tu correo.');
       // Sin cabeceras propias: así Apps Script acepta la petición desde otra página.
       r = await (await fetch(API, {method:'POST', body:JSON.stringify({accion, clave, ...extra})})).json();
     }
     if (r.error) throw new Error(r.error);
-    datos = r; aviso('', 1); pintar();
+    datos = r; if (clave) guardar('cita_clave', clave);
+    document.body.classList.remove('sin-llave'); aviso('', 1); pintar();
     return true;
   } catch (e) {
     aviso(e instanceof TypeError || e instanceof SyntaxError ? 'No hay conexión. Inténtalo otra vez.' : e.message, 5000);
+    if (e.message.startsWith('Enlace no válido')) pedirLlave();
+    else if (!datos) $('#saludo').textContent = 'No se pudo cargar. Cierra y vuelve a abrir.';
     return false;
   } finally { ocupada = false; }
 }
@@ -260,6 +281,11 @@ document.addEventListener('click', async e => {
 
 document.addEventListener('submit', async e => {
   e.preventDefault();
+  if (e.target.id === 'llave') {
+    const k = leerClave(e.target.enlace.value);
+    if (!k) return aviso('Ese no parece el enlace del correo. Cópialo completo.', 5000);
+    clave = k; await pedir('estado'); return;
+  }
   const f = e.target, valor = g => f.querySelector(`[data-grupo=${g}] [aria-pressed=true]`).dataset.valor;
   const boton = f.querySelector('[type=submit]'); boton.disabled = true;
   const ok = await pedir('invitar', {fecha:dia, inicio:elegido, horas:+valor('horas'), plan:valor('plan'),
