@@ -294,7 +294,7 @@ document.addEventListener('click', async e => {
 document.addEventListener('submit', async e => {
   e.preventDefault();
   if (e.target.id === 'llave') {
-    await pedir('entrar', {nombre: e.target.nombre.value.trim(), correo: e.target.correo.value.trim()}); return;
+    await pedir('entrar', {pideNombre: true, nombre: e.target.nombre.value.trim(), correo: e.target.correo.value.trim()}); return;
   }
   const f = e.target, valor = g => f.querySelector(`[data-grupo=${g}] [aria-pressed=true]`).dataset.valor;
   const boton = f.querySelector('[type=submit]'); boton.disabled = true;
