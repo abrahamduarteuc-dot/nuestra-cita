@@ -37,6 +37,7 @@ h1{font-size:34px}
 .bloque{flex:1;min-height:54px;border-radius:18px;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font-size:14px;border:1.5px dashed #DE8FA8;background:#fff;color:#8E1C48;min-width:0;overflow-wrap:anywhere}
 .bloque.ocupado{border:1.5px solid #F0E4E6;background:#F0E4E6;color:#6B4552}
 .bloque.pendiente{border:1.5px solid #C9A15A;background:#FFF3DA;color:#5C420E}
+.bloque.elegido{border:0;background:#B4235A;color:#fff}
 .bloque.aceptada{border:0;background:#B4235A;color:#fff;box-shadow:0 8px 20px #b4235a4d}
 .pie{position:fixed;left:0;right:0;bottom:0;padding:16px 20px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(#fff4f200,#FFF4F2 35%)}
 .grande{display:flex;align-items:center;justify-content:center;width:100%;max-width:420px;margin:auto;min-height:56px;border-radius:30px;border:0;background:#B4235A;color:#fff;font-weight:700;font-size:17px}
@@ -52,6 +53,8 @@ h2{font-size:28px}
 .grupo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 16px}
 .grupo.dos{grid-template-columns:repeat(2,1fr)}
 .chip{min-height:48px;border-radius:16px;border:1.5px solid #E7B7C6;background:#fff;font-weight:700}
+.ideas{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}.ideas .chip{padding:0 14px;font-weight:500}
+.resumen{background:#FBDDE4;border-radius:18px;padding:12px 16px;margin-bottom:16px;color:#6B1D3C}
 .chip[aria-pressed=true]{background:#3A1C28;color:#fff}
 label{display:block;font-weight:700;font-size:15px;margin-bottom:14px}
 input,textarea{display:block;width:100%;margin-top:8px;border:1.5px solid #E7B7C6;border-radius:16px;background:#fff;padding:13px 16px;font-size:16px;font-weight:400}
@@ -96,7 +99,7 @@ const parametros = new URLSearchParams(location.hash.slice(1));
 let clave = parametros.get('u') || cargar('cita_clave');
 let pendienteAbrir = parametros.get('inv');
 
-let datos = null, elegido = null, cambiando = null;
+let datos = null, elegido = null, cambiando = null, desde = null, rangoSel = null;
 let hoy = iso(new Date()), dia = hoy, semana = 0;
 
 function demo(p) {
@@ -177,6 +180,9 @@ function pintar() {
     return `<button class="dia" data-dia="${f}" aria-pressed="${f===dia}" aria-label="${largo(f)}" ${f<hoy?'disabled':''}><small>${'LMMJVSD'[n]}</small><b>${d.getDate()}</b><i>${marca}</i></button>`;
   }).join('');
   $('#cambio').innerHTML = cambiando ? `<div class="horas"><div class="bloque pendiente"><span>Reprogramando <b>${esc(cambiando.plan)}</b>: elige día y hora</span><button class="chip" data-hacer="soltar" style="padding:0 12px">Salir</button></div></div>` : '';
+  if (desde !== null) $('#cambio').innerHTML += `<div class="horas"><div class="bloque pendiente"><span>Desde las <b>${desde}:00</b>. Ahora toca la hora de término</span></div>
+    <div class="grupo dos" style="margin:0"><button class="chip" data-hacer="unaHora">Solo 1 hora</button><button class="chip" data-hacer="soltarRango">Cancelar</button></div>
+    <button class="chip" data-hacer="ocupar" style="background:none">No puedo a las ${desde}:00</button></div>`;
   let html = '';
   for (let h = 10; h < 24; h++) {
     const i = enHora(dia, h), o = ocupados(dia, h);
@@ -186,6 +192,9 @@ function pintar() {
       clase = i.estado;
       const estado = i.estado === 'aceptada' ? '¡Cita confirmada!' : i.de === datos.yo ? 'Esperando respuesta' : '¡Te invitaron! Toca para responder';
       texto = h === i.inicio ? `<span><b class="serif">${esc(i.plan)}</b><br>${estado}</span><span>♥</span>` : '<span></span><span>♥</span>';
+    } else if (desde !== null && h >= desde && h <= (rangoSel ?? desde)) {
+      clase = 'elegido';
+      texto = h === desde ? '<span><b>Desde aquí</b></span><span>♥</span>' : '<span></span><span>♥</span>';
     } else if (o.length) {
       clase = 'ocupado';
       texto = `<span>${o.length > 1 ? 'Los dos ocupados' : o[0].usuario === datos.yo ? 'Tú no puedes' : esc(datos.suNombre) + ' no puede'}</span>`;
@@ -209,31 +218,53 @@ function abrir(titulo, sub, cuerpo) {
   d.innerHTML = `<div class="cab"><div><h2>${titulo}</h2><div class="suave">${sub}</div></div><button class="flecha" data-cerrar aria-label="Cerrar">×</button></div>${cuerpo}`;
   if (!d.open) d.showModal();
 }
-const cerrar = () => { const d = $('#hoja'); document.body.appendChild($('#aviso')); d.close(); };
+const cerrar = () => { desde = rangoSel = null; const d = $('#hoja'); document.body.appendChild($('#aviso')); d.close(); };
 
 const chips = (nombre, lista, sel, extra = '') => `<div class="grupo ${extra}" data-grupo="${nombre}">` +
   lista.map(([v,t]) => `<button type="button" class="chip" data-valor="${v}" aria-pressed="${v==sel}">${t}</button>`).join('') + '</div>';
 
 function opciones(h) {
-  elegido = h;
+  // Un bloque ocupado solo por mí se puede liberar; uno libre inicia la selección.
   const mio = ocupados(dia,h).some(o => o.usuario === datos.yo);
-  abrir(`${h}:00`, largo(dia), `<div class="botones">
-    ${libre(dia,h) ? '<button class="grande" data-hacer="formulario">♥&nbsp; Invitar a salir</button>' : ''}
-    <button class="grande borde" data-hacer="ocupar">${mio ? 'Ya puedo en este horario' : 'No puedo en este horario'}</button></div>`);
+  if (mio) { elegido = h; return abrir(`${h}:00`, largo(dia), '<div class="botones"><button class="grande borde" data-hacer="ocupar">Ya puedo en este horario</button></div>'); }
+  if (!libre(dia,h)) return aviso('Ese horario no está libre');
+  if (desde === null || h < desde) { desde = h; rangoSel = null; pintar(); return; }
+  for (let x = desde; x <= h; x++) if (!libre(dia,x)) return aviso('Hay un horario ocupado en medio. Elige un bloque continuo.');
+  rangoSel = h; pintar(); formulario(desde, h - desde + 1);
 }
 
-function formulario(h) {
+const ideas = ['Cenar juntos a la luz de las velas', 'Ver una película abrazados', 'Un picnic al atardecer', 'Caminar y tomar un helado', 'Una sorpresa que preparé para ti'];
+
+function formulario(h, horas) {
   elegido = h;
-  if (datos.hayPareja === false) return abrir('Falta tu pareja', 'Aún no entra a la app', `<p>Envíale el enlace. Cuando escriba su nombre y correo, podrás invitar.</p><button class="grande" data-hacer="compartir">♥&nbsp; Enviar enlace</button>`);
-  const v = cambiando || {plan:'Cena', horas:2, lugar:'', vestimenta:'', mensaje:'Quiero pasar un rato lindo contigo. ¿Me acompañas?'};
-  let max = 0; while (max < 4 && libre(dia, h+max)) max++;
-  abrir(cambiando ? 'Nuevo horario' : 'Tu invitación', `${largo(dia)} · desde las ${h}:00`, `<form id="forma">
-    <b>¿Qué haremos?</b>${chips('plan', [['Cena','Cena'],['Cine','Cine'],['Picnic','Picnic'],['Sorpresa','Sorpresa']], v.plan, 'dos')}
-    <b>¿Cuántas horas?</b>${chips('horas', [...Array(max)].map((_,n) => [n+1, n+1+' h']), Math.min(v.horas,max))}
+  const v = cambiando || {plan:'', lugar:'', vestimenta:'', mensaje:'Quiero pasar un rato lindo contigo. ¿Me acompañas?'};
+  formulario.horas = horas;
+  abrir(cambiando ? 'Nuevo horario' : 'Tu invitación', largo(dia), `<form id="forma">
+    <div class="resumen"><b>${h}:00 a ${(h + horas) % 24 || '00'}:00</b> · ${horas} ${horas > 1 ? 'horas' : 'hora'}</div>
+    <label>Te quisiera invitar a…<textarea name="plan" rows="2" maxlength="120" required placeholder="Escríbelo con tus palabras">${esc(v.plan)}</textarea></label>
+    <div class="ideas">${ideas.map(t => `<button type="button" class="chip" data-idea="${t}">${t}</button>`).join('')}</div>
     <label>Lugar<input name="lugar" maxlength="120" value="${esc(v.lugar)}" placeholder="Ej: nuestro restaurante favorito"></label>
     <label>Mensaje<textarea name="mensaje" rows="3" maxlength="400">${esc(v.mensaje)}</textarea></label>
     <label>Código de vestimenta<input name="vestimenta" maxlength="80" value="${esc(v.vestimenta)}" placeholder="Ej: elegante, o como quieras"></label>
-    <button class="grande" type="submit">♥&nbsp; ${cambiando ? 'Proponer nuevo horario' : 'Enviar invitación'}</button></form>`);
+    <div class="botones"><button class="grande borde" type="button" data-hacer="vista">Ver cómo le llegará</button>
+    <button class="grande" type="submit">♥&nbsp; ${cambiando ? 'Proponer nuevo horario' : 'Enviar invitación'}</button></div></form>`);
+}
+
+function tarjeta(i, mia, titulo) {
+  return `<div class="tarjeta">
+    <div class="suave">${esc(mia ? datos.suNombre : datos.miNombre)},</div><h2>${titulo}</h2>
+    <div class="serif">${esc(i.plan)}</div><p><b>${largo(i.fecha)}</b><br>${rango(i)}</p>
+    ${i.lugar ? `<p>Lugar: ${esc(i.lugar)}</p>` : ''}${i.vestimenta ? `<p>Vestimenta: ${esc(i.vestimenta)}</p>` : ''}
+    <p class="suave">${esc(i.mensaje)}</p><p>Con amor, ${esc(mia ? datos.miNombre : datos.suNombre)}</p></div>`;
+}
+
+function leerForma(f) {
+  return {fecha:dia, inicio:elegido, horas:formulario.horas, plan:f.plan.value.trim(),
+    lugar:f.lugar.value.trim(), mensaje:f.mensaje.value.trim(), vestimenta:f.vestimenta.value.trim()};
+}
+
+function faltaPareja() {
+  abrir('Falta tu pareja', 'Tu invitación quedó lista', `<p>${esc(datos.suNombre === 'tu pareja' ? 'Ella' : datos.suNombre)} aún no entra a la app. Envíale el enlace: cuando escriba su correo, podrás enviarle la invitación.</p><button class="grande" data-hacer="compartir">♥&nbsp; Enviarle el enlace</button>`);
 }
 
 function verInvitacion(i) {
@@ -241,16 +272,12 @@ function verInvitacion(i) {
   const mia = i.de === datos.yo;
   // En modo de prueba se puede responder la propia invitación para ver el recorrido completo.
   const responde = i.estado === 'pendiente' && (!mia || !API);
-  const titulos = {pendiente:'¿Quieres salir conmigo?', aceptada:'¡Tenemos una cita!', otro:'Busquemos otro momento', cancelada:'Cita cancelada', reprogramada:'Cita reprogramada'};
+  const titulos = {pendiente:'Te quisiera invitar a…', aceptada:'¡Tenemos una cita!', otro:'Busquemos otro momento', cancelada:'Cita cancelada', reprogramada:'Cita reprogramada'};
   let botones = '';
   if (responde) botones = '<button class="grande" data-estado="aceptada">♥&nbsp; Sí, acepto</button>';
   if (activa(i)) botones += `<button class="grande borde" data-hacer="reprogramar">${responde && !mia ? 'Propongo otro horario' : 'Reprogramar'}</button>`;
   if (i.estado === 'aceptada' || (i.estado === 'pendiente' && mia)) botones += '<button class="grande borde" data-estado="cancelada">Cancelar cita</button>';
-  abrir('La invitación', mia ? `Para ${esc(datos.suNombre)}` : `De ${esc(datos.suNombre)}`, `<div class="tarjeta">
-    <div class="suave">${esc(mia ? datos.suNombre : datos.miNombre)},</div><h2>${titulos[i.estado]}</h2>
-    <div class="serif">${esc(i.plan)}</div><p><b>${largo(i.fecha)}</b><br>${rango(i)}</p>
-    ${i.lugar ? `<p>Lugar: ${esc(i.lugar)}</p>` : ''}${i.vestimenta ? `<p>Vestimenta: ${esc(i.vestimenta)}</p>` : ''}
-    <p class="suave">${esc(i.mensaje)}</p><p>Con amor, ${esc(mia ? datos.miNombre : datos.suNombre)}</p></div><div class="botones">${botones}</div>`);
+  abrir('La invitación', mia ? `Para ${esc(datos.suNombre)}` : `De ${esc(datos.suNombre)}`, tarjeta(i, mia, titulos[i.estado]) + `<div class="botones">${botones}</div>`);
 }
 
 function proximoLibre() {
@@ -265,10 +292,20 @@ document.addEventListener('click', async e => {
     const x = new Date(); x.setDate(x.getDate() - (x.getDay()+6)%7 + semana*7);
     dia = semana ? iso(x) : hoy; pintar();
   } else if (d.dia) { dia = d.dia; pintar(); }
-  else if (d.hora) { const h = +d.hora, i = enHora(dia,h); i ? verInvitacion(i) : opciones(h); }
+  else if (d.hora) { const h = +d.hora, i = enHora(dia,h); i && !cambiando ? verInvitacion(i) : opciones(h); }
+  else if (d.idea) { const t = b.closest('form').plan; t.value = d.idea; t.focus(); }
+  else if (d.hacer === 'unaHora') { rangoSel = desde; pintar(); formulario(desde, 1); }
+  else if (d.hacer === 'soltarRango') { desde = rangoSel = null; pintar(); }
+  else if (d.hacer === 'vista') {
+    const f = b.closest('form'); if (!f.plan.value.trim()) return aviso('Escribe primero a qué la quieres invitar');
+    formulario.guardado = leerForma(f);
+    abrir('Así le llegará', 'Vista previa', tarjeta(formulario.guardado, true, 'Te quisiera invitar a…') + '<button class="grande" data-hacer="volverForma">Volver y enviar</button>');
+  }
+  else if (d.hacer === 'volverForma') { const g = formulario.guardado; cambiando = cambiando ? {...cambiando, ...g} : null; const v = g; formulario(g.inicio, g.horas); const f = $('#forma'); f.plan.value = v.plan; f.lugar.value = v.lugar; f.mensaje.value = v.mensaje; f.vestimenta.value = v.vestimenta; }
   else if (b.id === 'invitar') {
     const h = proximoLibre();
-    h === undefined ? aviso('No quedan horas libres este día. Elige otro.') : formulario(h);
+    if (h === undefined) aviso('No quedan horas libres este día. Elige otro.');
+    else { aviso('Toca la hora en que empieza la cita ♥'); $('#horas').scrollIntoView({behavior:'smooth'}); }
   }
   else if ('cerrar' in d) cerrar();
   else if (d.valor) b.parentNode.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b));
@@ -282,7 +319,7 @@ document.addEventListener('click', async e => {
       else { await navigator.clipboard.writeText(url); aviso('Enlace copiado'); }
     } catch (err) {}
   }
-  else if (d.hacer === 'ocupar') { if (await pedir('ocupar', {fecha:dia, hora:elegido})) cerrar(); }
+  else if (d.hacer === 'ocupar') { const h = desde ?? elegido; desde = rangoSel = null; if (await pedir('ocupar', {fecha:dia, hora:h})) cerrar(); }
   else if (d.estado) {
     if (d.estado === 'cancelada' && !confirm('¿Seguro que quieres cancelar?')) return;
     if (await pedir('responder', {id:elegido, estado:d.estado})) {
@@ -296,15 +333,15 @@ document.addEventListener('submit', async e => {
   if (e.target.id === 'llave') {
     await pedir('entrar', {pideNombre: true, nombre: e.target.nombre.value.trim(), correo: e.target.correo.value.trim()}); return;
   }
-  const f = e.target, valor = g => f.querySelector(`[data-grupo=${g}] [aria-pressed=true]`).dataset.valor;
+  const f = e.target;
+  if (API && datos.hayPareja === false) return faltaPareja();
   const boton = f.querySelector('[type=submit]'); boton.disabled = true;
-  const ok = await pedir('invitar', {fecha:dia, inicio:elegido, reemplaza:cambiando?.id || '', horas:+valor('horas'), plan:valor('plan'),
-    lugar:f.lugar.value.trim(), mensaje:f.mensaje.value.trim(), vestimenta:f.vestimenta.value.trim()});
+  const ok = await pedir('invitar', {...leerForma(f), reemplaza:cambiando?.id || ''});
   boton.disabled = false;
   if (ok) { cambiando = null; cerrar(); pintar(); aviso(API ? '💌 Invitación enviada' : '💌 Invitación guardada (modo de prueba)'); }
 });
 
-$('#hoja').addEventListener('close', () => document.body.appendChild($('#aviso')));
+$('#hoja').addEventListener('close', () => { document.body.appendChild($('#aviso')); if (desde !== null) { desde = rangoSel = null; pintar(); } });
 window.addEventListener('hashchange', () => location.reload());
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#hoja').open) { hoy = iso(new Date()); if (dia < hoy) dia = hoy; pedir('estado'); } });
 pedir('estado');
