@@ -149,7 +149,7 @@ async function pedir(accion, extra = {}) {
   } catch (e) {
     aviso(e instanceof TypeError || e instanceof SyntaxError ? 'No hay conexión. Inténtalo otra vez.' : e.message, 5000);
     if (e.message.startsWith('Enlace no válido')) pedirLlave();
-    else if (!datos) $('#saludo').textContent = 'No se pudo cargar. Cierra y vuelve a abrir.';
+    else if (!datos && (e instanceof TypeError || e instanceof SyntaxError)) $('#saludo').textContent = 'Sin conexión. Cierra y vuelve a abrir.';
     return false;
   } finally { ocupada = false; }
 }
