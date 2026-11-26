@@ -122,21 +122,14 @@ function pedirLlave() {
   datos = null;
   document.body.classList.add('sin-llave');
   $('#saludo').textContent = 'Solo para nosotros dos';
-  $('#horas').innerHTML = `<form id="llave"><p>Abre el correo <b>“Nuestro calendario de citas”</b>, mantén presionado el botón, elige <b>Copiar enlace</b> y pégalo aquí.</p>
-    <label>Tu enlace personal<input name="enlace" autocomplete="off" autocapitalize="off" placeholder="Pegar enlace" required></label>
+  $('#horas').innerHTML = `<form id="llave"><label>Tu correo<input type="email" name="correo" autocomplete="email" autocapitalize="off" placeholder="nombre@gmail.com" required></label>
     <button class="grande" type="submit">♥&nbsp; Entrar</button></form>`;
-}
-// Acepta el enlace completo, uno envuelto por el correo o solo la clave.
-function leerClave(texto) {
-  let t = texto.trim();
-  try { t = decodeURIComponent(decodeURIComponent(t)); } catch (e) {}
-  return (t.match(/(?:u=|^)([a-z0-9]{32})(?![a-z0-9])/i) || [])[1];
 }
 
 let ocupada = false;
 async function pedir(accion, extra = {}) {
   if (ocupada) return false;
-  if (API && !clave) { pedirLlave(); return false; }
+  if (API && !clave && accion !== 'entrar') { pedirLlave(); return false; }
   ocupada = true;
   if (accion !== 'estado') aviso('Un momento…', 0);
   try {
@@ -147,7 +140,7 @@ async function pedir(accion, extra = {}) {
       r = await (await fetch(API, {method:'POST', body:JSON.stringify({accion, clave, ...extra})})).json();
     }
     if (r.error) throw new Error(r.error);
-    datos = r; if (clave) guardar('cita_clave', clave);
+    datos = r; if (r.clave) clave = r.clave; if (clave) guardar('cita_clave', clave);
     document.body.classList.remove('sin-llave'); aviso('', 1); pintar();
     return true;
   } catch (e) {
@@ -282,9 +275,7 @@ document.addEventListener('click', async e => {
 document.addEventListener('submit', async e => {
   e.preventDefault();
   if (e.target.id === 'llave') {
-    const k = leerClave(e.target.enlace.value);
-    if (!k) return aviso('Ese no parece el enlace del correo. Cópialo completo.', 5000);
-    clave = k; await pedir('estado'); return;
+    await pedir('entrar', {correo: e.target.correo.value.trim()}); return;
   }
   const f = e.target, valor = g => f.querySelector(`[data-grupo=${g}] [aria-pressed=true]`).dataset.valor;
   const boton = f.querySelector('[type=submit]'); boton.disabled = true;
