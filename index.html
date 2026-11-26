@@ -62,6 +62,7 @@ textarea{resize:vertical}
 .botones{display:flex;flex-direction:column;gap:10px}
 #aviso{position:fixed;top:12px;left:12px;right:12px;max-width:430px;margin:auto;background:#3A1C28;color:#fff;border-radius:16px;padding:14px 18px;text-align:center;z-index:9}
 #aviso:empty{display:none}
+[hidden]{display:none!important}
 .sin-llave .semana,.sin-llave .dias,.sin-llave .pie{display:none}
 </style>
 </head>
@@ -124,8 +125,8 @@ function pedirLlave() {
   datos = null;
   document.body.classList.add('sin-llave');
   $('#saludo').textContent = 'Solo para nosotros dos';
-  $('#horas').innerHTML = `<form id="llave"><label>Tu nombre<input name="nombre" autocomplete="given-name" maxlength="40" placeholder="Como quieres que te llame" required></label>
-    <label>Tu correo<input type="email" name="correo" autocomplete="email" autocapitalize="off" placeholder="nombre@gmail.com" required></label>
+  $('#horas').innerHTML = `<form id="llave"><label>Tu correo<input type="email" name="correo" autocomplete="email" autocapitalize="off" placeholder="nombre@gmail.com" required></label>
+    <label id="campoNombre" hidden>Es tu primera vez. ¿Cómo te llamas?<input name="nombre" autocomplete="given-name" maxlength="40" placeholder="Tu nombre"></label>
     <button class="grande" type="submit">♥&nbsp; Entrar</button></form>`;
 }
 
@@ -149,6 +150,9 @@ async function pedir(accion, extra = {}) {
   } catch (e) {
     aviso(e instanceof TypeError || e instanceof SyntaxError ? 'No hay conexión. Inténtalo otra vez.' : e.message, 5000);
     if (e.message.startsWith('Enlace no válido')) pedirLlave();
+    else if (e.message.startsWith('Es tu primera vez') && $('#campoNombre')) {
+      aviso('', 1); $('#campoNombre').hidden = false; $('#llave').nombre.required = true; $('#llave').nombre.focus();
+    }
     else if (!datos && (e instanceof TypeError || e instanceof SyntaxError)) $('#saludo').textContent = 'Sin conexión. Cierra y vuelve a abrir.';
     return false;
   } finally { ocupada = false; }
